@@ -10,6 +10,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import java.util.concurrent.ConcurrentSkipListSet;
+
 public class WorldBackCMD extends SimplifiedCommand {
     public WorldBackCMD() {
         super("worldback", WorldBack.getInstance());
@@ -44,5 +46,28 @@ public class WorldBackCMD extends SimplifiedCommand {
         });
 
         return true;
+    }
+
+    @Override
+    public ConcurrentSkipListSet<String> tabComplete(CommandContext ctx) {
+        ConcurrentSkipListSet<String> completions = new ConcurrentSkipListSet<>();
+
+        if (ctx.getArgCount() <= 1) {
+            String partialWorld = ctx.getStringArg(0).toLowerCase();
+            for (World world : Bukkit.getWorlds()) {
+                if (world.getName().toLowerCase().startsWith(partialWorld)) {
+                    completions.add(world.getName());
+                }
+            }
+        } else if (ctx.getArgCount() == 2) {
+            String partialPlayer = ctx.getStringArg(1).toLowerCase();
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (player.getName().toLowerCase().startsWith(partialPlayer)) {
+                    completions.add(player.getName());
+                }
+            }
+        }
+
+        return completions;
     }
 }

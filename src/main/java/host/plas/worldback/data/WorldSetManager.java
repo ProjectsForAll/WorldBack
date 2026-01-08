@@ -91,4 +91,17 @@ public class WorldSetManager {
         }
         return false;
     }
+
+    public static ConcurrentSkipListSet<String> getAllWorldSetNames() {
+        ConcurrentSkipListSet<String> names = new ConcurrentSkipListSet<>();
+        for (WorldSet ws : loadedWorldSets) {
+            names.add(ws.getName());
+        }
+        return names;
+    }
+
+    public static String[] getAllWorldSetNamesAsArray() {
+        ConcurrentSkipListSet<String> namesSet = getAllWorldSetNames();
+        return namesSet.toArray(new String[0]);
+    }
 }

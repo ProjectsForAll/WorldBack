@@ -4,19 +4,27 @@ import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.ConcurrentSkipListSet;
 
 @Getter @Setter
-public class WorldSet {
+public class WorldSet implements Comparable<WorldSet> {
     private String name;
     private ConcurrentSkipListSet<String> worldNames;
+    @Nullable
     private Location spawnpoint; // nullable
 
     public WorldSet(String name) {
         this.name = name;
         this.worldNames = new ConcurrentSkipListSet<>();
         this.spawnpoint = null;
+    }
+
+    @Override
+    public int compareTo(@NonNull WorldSet o) {
+        return this.name.compareToIgnoreCase(o.name);
     }
 
     public boolean addWorld(String worldName) {
@@ -34,10 +42,6 @@ public class WorldSet {
     public boolean containsWorld(World world) {
         if (world == null) return false;
         return containsWorld(world.getName());
-    }
-
-    public void setSpawnpoint(Location spawnpoint) {
-        this.spawnpoint = spawnpoint;
     }
 
     public boolean hasSpawnpoint() {

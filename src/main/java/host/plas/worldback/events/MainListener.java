@@ -109,11 +109,10 @@ public class MainListener extends AbstractConglomerate {
         data.saveAndUnload();
     }
 
-    // Track if player is using a portal (set to true when portal event fires)
-    private static final java.util.Set<Player> usingPortal = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
-
     @EventHandler
     public void onWorldMove(PlayerMoveEvent event) {
+        if (event instanceof PlayerPortalEvent) return; // Skip portal events here
+
         Player player = event.getPlayer();
 
         Location from = event.getFrom();
@@ -134,21 +133,6 @@ public class MainListener extends AbstractConglomerate {
 
         if (fromWorld == toWorld) return;
 
-        // Check if player is using a portal - if so, let portal handle the teleportation
-        if (usingPortal.contains(player)) {
-            usingPortal.remove(player);
-            // Update lastEnvironment for WorldSet
-            if (data.getCurrentWorldSet() != null) {
-                Optional<WorldSet> worldSetOpt = WorldSetManager.getWorldSet(data.getCurrentWorldSet());
-                if (worldSetOpt.isPresent() && worldSetOpt.get().containsWorld(toWorld)) {
-                    data.setLastEnvironment(toWorld.getEnvironment());
-                    data.save();
-                }
-            }
-            // Don't teleport - portal already handled it
-            return;
-        }
-
         // Update lastEnvironment when changing worlds within a WorldSet
         if (data.getCurrentWorldSet() != null) {
             Optional<WorldSet> worldSetOpt = WorldSetManager.getWorldSet(data.getCurrentWorldSet());
@@ -163,17 +147,6 @@ public class MainListener extends AbstractConglomerate {
         data.teleportWorldLoc(toWorld);
 
         data.save();
-    }
-
-    @EventHandler
-    public void onPortal(PlayerPortalEvent event) {
-        Player player = event.getPlayer();
-        
-        // Mark player as using portal so onWorldMove doesn't interfere
-        usingPortal.add(player);
-        
-        // Let the portal event proceed normally - don't cancel it
-        // The plugin will handle tracking the environment after the portal teleports
     }
 
     @EventHandler
@@ -194,7 +167,7 @@ public class MainListener extends AbstractConglomerate {
                     if (worldSet.hasSpawnpoint()) {
                         Location spawnpoint = worldSet.getSpawnpoint();
                         final Location finalSpawnpoint = spawnpoint;
-                        Bukkit.getScheduler().runTask(WorldBack.getInstance(), () -> {
+                        TaskManager.runTask(() -> {
                             event.setRespawnLocation(finalSpawnpoint);
                         });
                         return;
@@ -213,7 +186,7 @@ public class MainListener extends AbstractConglomerate {
                     if (overworldWorld != null) {
                         Location spawnLoc = WorldBack.getMainConfig().getSpawnLocation(overworldWorld);
                         final Location finalSpawnLoc = spawnLoc;
-                        Bukkit.getScheduler().runTask(WorldBack.getInstance(), () -> {
+                        TaskManager.runTask(() -> {
                             event.setRespawnLocation(finalSpawnLoc);
                         });
                     }

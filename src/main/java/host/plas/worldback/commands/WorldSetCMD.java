@@ -14,6 +14,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.util.Optional;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 public class WorldSetCMD extends SimplifiedCommand {
     public WorldSetCMD() {
@@ -22,7 +23,7 @@ public class WorldSetCMD extends SimplifiedCommand {
 
     @Override
     public boolean command(CommandContext ctx) {
-        if (!ctx.isArgUsable(1)) {
+        if (!ctx.isArgUsable(0)) {
             ctx.sendMessage("&cUsage: /worldset <create|add|remove|join|spawnpoint> [args]");
             return false;
         }
@@ -47,7 +48,7 @@ public class WorldSetCMD extends SimplifiedCommand {
     }
 
     private boolean handleCreate(CommandContext ctx) {
-        if (!ctx.isArgUsable(2)) {
+        if (! ctx.isArgUsable(1)) {
             ctx.sendMessage("&cUsage: /worldset create <name>");
             return false;
         }
@@ -60,12 +61,12 @@ public class WorldSetCMD extends SimplifiedCommand {
         }
 
         WorldSetManager.createWorldSet(name);
-        ctx.sendMessage("&aWorldSet '" + name + "' created successfully.");
+        ctx.sendMessage("&cWorldSet &7'&d" + name + "&7' &ecreated successfully&7.");
         return true;
     }
 
     private boolean handleAdd(CommandContext ctx) {
-        if (!ctx.isArgUsable(3)) {
+        if (!ctx.isArgUsable(2)) {
             ctx.sendMessage("&cUsage: /worldset add <name> <world>");
             return false;
         }
@@ -89,7 +90,7 @@ public class WorldSetCMD extends SimplifiedCommand {
         boolean added = worldSet.addWorld(worldName);
         WorldSetManager.saveWorldSet(worldSet);
         if (added) {
-            ctx.sendMessage("&aAdded world '" + worldName + "' to WorldSet '" + name + "'.");
+            ctx.sendMessage("&eAdded world &7'&d" + worldName + "&7' &eto &cWorldSet &7'&d" + name + "&7'.");
         } else {
             ctx.sendMessage("&cWorld '" + worldName + "' is already in WorldSet '" + name + "'.");
         }
@@ -97,7 +98,7 @@ public class WorldSetCMD extends SimplifiedCommand {
     }
 
     private boolean handleRemove(CommandContext ctx) {
-        if (!ctx.isArgUsable(3)) {
+        if (!ctx.isArgUsable(2)) {
             ctx.sendMessage("&cUsage: /worldset remove <name> <world>");
             return false;
         }
@@ -114,7 +115,7 @@ public class WorldSetCMD extends SimplifiedCommand {
         WorldSet worldSet = worldSetOpt.get();
         if (worldSet.removeWorld(worldName)) {
             WorldSetManager.saveWorldSet(worldSet);
-            ctx.sendMessage("&aRemoved world '" + worldName + "' from WorldSet '" + name + "'.");
+            ctx.sendMessage("&eRemoved world &7'&d" + worldName + "&7' &efrom &cWorldSet &7'&d" + name + "&7'.");
         } else {
             ctx.sendMessage("&cWorld '" + worldName + "' is not in WorldSet '" + name + "'.");
         }
@@ -122,7 +123,7 @@ public class WorldSetCMD extends SimplifiedCommand {
     }
 
     private boolean handleJoin(CommandContext ctx) {
-        if (!ctx.isArgUsable(2)) {
+        if (!ctx.isArgUsable(1)) {
             ctx.sendMessage("&cUsage: /worldset join <name>");
             return false;
         }
@@ -147,17 +148,13 @@ public class WorldSetCMD extends SimplifiedCommand {
             
             data.setCurrentWorldSet(name);
             data.save();
-            
-            Bukkit.getScheduler().runTask(WorldBack.getInstance(), () -> {
-                ctx.sendMessage("&aJoined WorldSet '" + name + "'.");
-            });
         });
 
         return true;
     }
 
     private boolean handleSpawnpoint(CommandContext ctx) {
-        if (!ctx.isArgUsable(2)) {
+        if (!ctx.isArgUsable(1)) {
             ctx.sendMessage("&cUsage: /worldset spawnpoint <name> [location]");
             return false;
         }
@@ -173,7 +170,7 @@ public class WorldSetCMD extends SimplifiedCommand {
         WorldSet worldSet = worldSetOpt.get();
         
         Location spawnpoint;
-        if (ctx.isArgUsable(3)) {
+        if (ctx.isArgUsable(2)) {
             // Try to parse location from arguments
             Player player = ctx.getPlayer().orElse(null);
             if (player == null) {
@@ -192,11 +189,31 @@ public class WorldSetCMD extends SimplifiedCommand {
 
         worldSet.setSpawnpoint(spawnpoint);
         WorldSetManager.saveWorldSet(worldSet);
-        ctx.sendMessage("&aSet spawnpoint for WorldSet '" + name + "' at " + 
-                       spawnpoint.getWorld().getName() + " (" + 
-                       (int)spawnpoint.getX() + ", " + 
-                       (int)spawnpoint.getY() + ", " + 
-                       (int)spawnpoint.getZ() + ").");
+        ctx.sendMessage("&eSet spawnpoint for &cWorldSet &7'&d" + name + "&7' &eat &a" +
+                       spawnpoint.getWorld().getName() + " &7(&b" +
+                       (int)spawnpoint.getX() + "&7, &b" +
+                       (int)spawnpoint.getY() + "&7, &b" +
+                       (int)spawnpoint.getZ() + "&7).");
         return true;
+    }
+
+    @Override
+    public ConcurrentSkipListSet<String> tabComplete(CommandContext ctx) {
+        ConcurrentSkipListSet<String> completions = new ConcurrentSkipListSet<>();
+
+        if (ctx.getArgCount() <= 1) {
+            completions.add("create");
+            completions.add("add");
+            completions.add("remove");
+            completions.add("join");
+            completions.add("spawnpoint");
+        } else if (ctx.getArgCount() == 2) {
+            String subCommand = ctx.getStringArg(0).toLowerCase();
+            if (subCommand.equals("add") || subCommand.equals("remove") || subCommand.equals("spawnpoint") || subCommand.equals("join")) {
+                completions.addAll(WorldSetManager.getAllWorldSetNames());
+            }
+        }
+
+        return completions;
     }
 }
