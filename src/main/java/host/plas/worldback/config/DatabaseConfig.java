@@ -1,13 +1,13 @@
-package host.plas.exampleproject.config;
+package host.plas.worldback.config;
 
 import gg.drak.thebase.storage.resources.flat.simple.SimpleConfiguration;
 import host.plas.bou.sql.ConnectorSet;
 import host.plas.bou.sql.DatabaseType;
-import host.plas.exampleproject.ExampleProject;
+import host.plas.worldback.WorldBack;
 
 public class DatabaseConfig extends SimpleConfiguration {
     public DatabaseConfig() {
-        super("database-config.yml", ExampleProject.getInstance(), false);
+        super("database-config.yml", WorldBack.getInstance(), false);
     }
 
     @Override

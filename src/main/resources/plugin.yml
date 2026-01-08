@@ -9,3 +9,11 @@ folia-supported: true
 
 depend:
   - BukkitOfUtils
+
+commands:
+  worldback:
+    description: Return to a back of a certain world.
+    permission: worldback.commands.worldback
+  worldset:
+    description: Edit a WorldSet.
+    permission: worldback.commands.worldset

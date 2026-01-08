@@ -1,30 +1,37 @@
-package host.plas.exampleproject;
+package host.plas.worldback;
 
 import host.plas.bou.BetterPlugin;
-import host.plas.exampleproject.config.DatabaseConfig;
-import host.plas.exampleproject.config.MainConfig;
-import host.plas.exampleproject.data.PlayerManager;
-import host.plas.exampleproject.database.ExampleOperator;
-import host.plas.exampleproject.events.MainListener;
+import host.plas.worldback.commands.WorldBackCMD;
+import host.plas.worldback.commands.WorldSetCMD;
+import host.plas.worldback.config.DatabaseConfig;
+import host.plas.worldback.config.MainConfig;
+import host.plas.worldback.data.PlayerManager;
+import host.plas.worldback.data.WorldSetManager;
+import host.plas.worldback.database.MainOperator;
+import host.plas.worldback.events.MainListener;
+import host.plas.worldback.tickers.SaveTicker;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
-public final class ExampleProject extends BetterPlugin {
+public final class WorldBack extends BetterPlugin {
     @Getter @Setter
-    private static ExampleProject instance;
+    private static WorldBack instance;
     @Getter @Setter
     private static MainConfig mainConfig;
     @Getter @Setter
     private static DatabaseConfig databaseConfig;
 
     @Getter @Setter
-    private static ExampleOperator database;
+    private static MainOperator database;
 
     @Getter @Setter
     private static MainListener mainListener;
 
-    public ExampleProject() {
+    @Getter @Setter
+    private static SaveTicker saveTicker;
+
+    public WorldBack() {
         super();
     }
 
@@ -36,9 +43,17 @@ public final class ExampleProject extends BetterPlugin {
         setMainConfig(new MainConfig()); // Instantiate the main config and set it.
         setDatabaseConfig(new DatabaseConfig()); // Instantiate the database config and set it.
 
-        setDatabase(new ExampleOperator()); // Instantiate the database operator and set it. // Uses the database config.
+        setDatabase(new MainOperator()); // Instantiate the database operator and set it. // Uses the database config.
 
         setMainListener(new MainListener()); // Instantiate the main listener and set it.
+
+        setSaveTicker(new SaveTicker());
+
+        new WorldBackCMD();
+        new WorldSetCMD();
+
+        // Load WorldSets from config
+        WorldSetManager.loadWorldSets();
     }
 
     @Override
