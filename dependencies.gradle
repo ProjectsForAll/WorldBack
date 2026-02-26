@@ -4,14 +4,15 @@ ext {
     SHADOW = [
     ]
     ANNO = [
-            'gg.drak:BukkitOfUtils:1.16.0',
+//            'gg.drak:BukkitOfUtils:1.18.0',
             'dev.folia:folia-api:1.21.8-R0.1-SNAPSHOT',
     ]
     COMP_ONLY = [
-            'gg.drak:BukkitOfUtils:1.16.0',
+//            'gg.drak:BukkitOfUtils:1.18.0',
             'dev.folia:folia-api:1.21.8-R0.1-SNAPSHOT',
     ]
     FILES = [
+            "libs/BukkitOfUtils-1.18.0.jar",
     ]
     OTHER_PLUGINS = [
             'me.clip:placeholderapi:2.11.7',

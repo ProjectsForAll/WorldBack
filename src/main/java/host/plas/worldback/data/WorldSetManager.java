@@ -2,6 +2,7 @@ package host.plas.worldback.data;
 
 import host.plas.worldback.WorldBack;
 import lombok.Getter;
+import lombok.Setter;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -11,19 +12,19 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 public class WorldSetManager {
-    @Getter
+    @Getter @Setter
     private static ConcurrentSkipListSet<WorldSet> loadedWorldSets = new ConcurrentSkipListSet<>();
 
     public static WorldSet createWorldSet(String name) {
         WorldSet worldSet = new WorldSet(name);
-        loadedWorldSets.add(worldSet);
+        getLoadedWorldSets().add(worldSet);
         WorldBack.getMainConfig().saveWorldSet(worldSet);
         return worldSet;
     }
 
     public static Optional<WorldSet> getWorldSet(String name) {
         // First check loaded WorldSets
-        Optional<WorldSet> loaded = loadedWorldSets.stream()
+        Optional<WorldSet> loaded = getLoadedWorldSets().stream()
                 .filter(ws -> ws.getName().equalsIgnoreCase(name))
                 .findFirst();
         if (loaded.isPresent()) {
@@ -32,7 +33,7 @@ public class WorldSetManager {
 
         // If not loaded, try loading from config
         return WorldBack.getMainConfig().getWorldSet(name).map(ws -> {
-            loadedWorldSets.add(ws);
+            getLoadedWorldSets().add(ws);
             return ws;
         });
     }
@@ -45,7 +46,7 @@ public class WorldSetManager {
         if (world == null) return Optional.empty();
 
         // Check loaded WorldSets first
-        Optional<WorldSet> found = loadedWorldSets.stream()
+        Optional<WorldSet> found = getLoadedWorldSets().stream()
                 .filter(ws -> ws.containsWorld(world))
                 .findFirst();
         if (found.isPresent()) {
@@ -56,7 +57,7 @@ public class WorldSetManager {
         List<WorldSet> allWorldSets = WorldBack.getMainConfig().getAllWorldSets();
         for (WorldSet worldSet : allWorldSets) {
             if (worldSet.containsWorld(world)) {
-                loadedWorldSets.add(worldSet);
+                getLoadedWorldSets().add(worldSet);
                 return Optional.of(worldSet);
             }
         }
@@ -70,14 +71,14 @@ public class WorldSetManager {
 
     public static void loadWorldSets() {
         List<WorldSet> worldSets = WorldBack.getMainConfig().getAllWorldSets();
-        loadedWorldSets.clear();
-        loadedWorldSets.addAll(worldSets);
+        getLoadedWorldSets().clear();
+        getLoadedWorldSets().addAll(worldSets);
     }
 
     public static boolean removeWorldSet(String name) {
         Optional<WorldSet> worldSet = getWorldSet(name);
         if (worldSet.isPresent()) {
-            loadedWorldSets.remove(worldSet.get());
+            getLoadedWorldSets().remove(worldSet.get());
             // Remove from config by setting it to null or deleting the key
             try {
                 java.io.File configFile = new java.io.File(WorldBack.getInstance().getDataFolder(), "config.yml");
@@ -94,7 +95,7 @@ public class WorldSetManager {
 
     public static ConcurrentSkipListSet<String> getAllWorldSetNames() {
         ConcurrentSkipListSet<String> names = new ConcurrentSkipListSet<>();
-        for (WorldSet ws : loadedWorldSets) {
+        for (WorldSet ws : getLoadedWorldSets()) {
             names.add(ws.getName());
         }
         return names;

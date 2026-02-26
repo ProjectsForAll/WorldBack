@@ -93,15 +93,69 @@ public class MainOperator extends DBOperator {
         });
         root.add("locations", locationsArray);
 
-        // Serialize WorldSet data
-        if (playerData.getCurrentWorldSet() != null) {
-            root.addProperty("currentWorldSet", playerData.getCurrentWorldSet());
-        }
-        if (playerData.getLastEnvironment() != null) {
-            root.addProperty("lastEnvironment", playerData.getLastEnvironment().name());
+        // Serialize last world per WorldSet
+        JsonObject lastWorldsObj = new JsonObject();
+        playerData.getLastWorldPerWorldSet().forEach(lastWorldsObj::addProperty);
+        if (!lastWorldsObj.isEmpty()) {
+            root.add("lastWorldPerWorldSet", lastWorldsObj);
         }
 
         return root.toString();
+    }
+
+    /**
+     * Checks if the data is in old format (just JSON array)
+     */
+    public static boolean isOldFormat(String data) {
+        try {
+            JsonElement rootElement = new Gson().fromJson(data, JsonElement.class);
+            return rootElement.isJsonArray();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Migrates old format data to new format
+     */
+    public static String migrateToNewFormat(String oldData) {
+        try {
+            JsonElement rootElement = new Gson().fromJson(oldData, JsonElement.class);
+            
+            JsonObject newRoot = new JsonObject();
+            
+            // Handle old format (just array)
+            if (rootElement.isJsonArray()) {
+                newRoot.add("locations", rootElement.getAsJsonArray());
+                return newRoot.toString();
+            }
+            
+            // Handle new format but missing locations wrapper
+            if (rootElement.isJsonObject()) {
+                JsonObject oldRoot = rootElement.getAsJsonObject();
+                
+                // If it already has locations, it's already new format
+                if (oldRoot.has("locations")) {
+                    return oldData; // Already new format
+                }
+                
+                // If it has old currentWorldSet/lastEnvironment, migrate those
+                // Copy all existing properties
+                for (String key : oldRoot.keySet()) {
+                    if (!key.equals("currentWorldSet") && !key.equals("lastEnvironment")) {
+                        newRoot.add(key, oldRoot.get(key));
+                    }
+                }
+                
+                // If no locations array exists, try to create one from the root
+                // This handles edge cases where data might be malformed
+                return newRoot.toString();
+            }
+        } catch (Throwable e) {
+            WorldBack.getInstance().logWarning("Failed to migrate old format data", e);
+        }
+        
+        return oldData; // Return original if migration fails
     }
 
     public static ConcurrentSkipListMap<String, Location> deserializeWorldLocs(String data) {
@@ -112,7 +166,9 @@ public class MainOperator extends DBOperator {
             
             // Check if it's the old format (JsonArray) or new format (JsonObject)
             JsonArray dataArray;
-            if (rootElement.isJsonArray()) {
+            boolean isOldFormat = rootElement.isJsonArray();
+            
+            if (isOldFormat) {
                 // Old format - just an array of locations
                 dataArray = rootElement.getAsJsonArray();
             } else if (rootElement.isJsonObject()) {
@@ -121,8 +177,8 @@ public class MainOperator extends DBOperator {
                 if (root.has("locations")) {
                     dataArray = root.getAsJsonArray("locations");
                 } else {
-                    // Fallback to old format
-                    dataArray = rootElement.getAsJsonArray();
+                    // No locations array found - return empty
+                    return locs;
                 }
             } else {
                 return locs;
@@ -157,18 +213,59 @@ public class MainOperator extends DBOperator {
         try {
             JsonElement rootElement = new Gson().fromJson(data, JsonElement.class);
             
+            // Handle old format (just array) - migrate it
+            if (rootElement.isJsonArray()) {
+                // Old format detected - try to migrate legacy data
+                // For old format, we can't determine WorldSet info, so we'll leave it empty
+                // The data will be migrated to new format on next save
+                return;
+            }
+            
             if (rootElement.isJsonObject()) {
                 JsonObject root = rootElement.getAsJsonObject();
                 
-                // Deserialize WorldSet data
-                if (root.has("currentWorldSet") && !root.get("currentWorldSet").isJsonNull()) {
-                    playerData.setCurrentWorldSet(root.get("currentWorldSet").getAsString());
+                // Deserialize last world per WorldSet
+                if (root.has("lastWorldPerWorldSet") && root.get("lastWorldPerWorldSet").isJsonObject()) {
+                    JsonObject lastWorldsObj = root.getAsJsonObject("lastWorldPerWorldSet");
+                    for (String worldSetName : lastWorldsObj.keySet()) {
+                        if (!lastWorldsObj.get(worldSetName).isJsonNull()) {
+                            String worldName = lastWorldsObj.get(worldSetName).getAsString();
+                            playerData.getLastWorldPerWorldSet().put(worldSetName, worldName);
+                        }
+                    }
                 }
-                if (root.has("lastEnvironment") && !root.get("lastEnvironment").isJsonNull()) {
-                    try {
-                        Environment env = Environment.valueOf(root.get("lastEnvironment").getAsString());
-                        playerData.setLastEnvironment(env);
-                    } catch (Throwable ignored) {
+                
+                // Legacy support: migrate old currentWorldSet/lastEnvironment to new format
+                if (root.has("currentWorldSet") && !root.get("currentWorldSet").isJsonNull()) {
+                    String worldSetName = root.get("currentWorldSet").getAsString();
+                    // Try to find a world in that WorldSet based on lastEnvironment
+                    if (root.has("lastEnvironment") && !root.get("lastEnvironment").isJsonNull()) {
+                        try {
+                            Environment env = Environment.valueOf(root.get("lastEnvironment").getAsString());
+                            // Find a world in the WorldSet with that environment
+                            host.plas.worldback.data.WorldSetManager.getWorldSet(worldSetName).ifPresent(worldSet -> {
+                                for (String worldName : worldSet.getWorldNames()) {
+                                    World world = Bukkit.getWorld(worldName);
+                                    if (world != null && world.getEnvironment() == env) {
+                                        playerData.getLastWorldPerWorldSet().put(worldSetName, worldName);
+                                        break;
+                                    }
+                                }
+                            });
+                        } catch (Throwable ignored) {
+                        }
+                    } else {
+                        // If we have currentWorldSet but no lastEnvironment, try to find any world
+                        // that the player has a location for in that WorldSet
+                        host.plas.worldback.data.WorldSetManager.getWorldSet(worldSetName).ifPresent(worldSet -> {
+                            // Find the first world in the WorldSet that the player has a location for
+                            for (String worldName : worldSet.getWorldNames()) {
+                                if (playerData.getWorldLoc(worldName) != null) {
+                                    playerData.getLastWorldPerWorldSet().put(worldSetName, worldName);
+                                    break;
+                                }
+                            }
+                        });
                     }
                 }
             }
@@ -183,6 +280,7 @@ public class MainOperator extends DBOperator {
             String s1 = Statements.getStatement(Statements.StatementType.PULL_PLAYER_MAIN, getConnectorSet());
 
             AtomicReference<Optional<PlayerData>> ref = new AtomicReference<>(Optional.empty());
+            AtomicReference<Boolean> needsMigrationRef = new AtomicReference<>(false);
 
             executeQuery(s1, stmt -> {
                 try {
@@ -196,11 +294,32 @@ public class MainOperator extends DBOperator {
                         String name = rs.getString("Name");
                         String worldLocsData = rs.getString("WorldLocs");
 
+                        // Check if data is in old format and migrate if needed
+                        boolean needsMigration = isOldFormat(worldLocsData);
+                        needsMigrationRef.set(needsMigration);
+                        
+                        if (needsMigration) {
+                            WorldBack.getInstance().logInfo("Migrating old format data for player: " + uuid);
+                            // Migrate the data format
+                            worldLocsData = migrateToNewFormat(worldLocsData);
+                        }
+
                         ConcurrentSkipListMap<String, Location> worldLocs = deserializeWorldLocs(worldLocsData);
 
                         PlayerData playerData = new PlayerData(uuid, name);
                         playerData.getWorldPlaces().putAll(worldLocs);
+                        // Initialize lastWorldPerWorldSet if null (shouldn't happen, but safety check)
+                        if (playerData.getLastWorldPerWorldSet() == null) {
+                            playerData.setLastWorldPerWorldSet(new java.util.concurrent.ConcurrentSkipListMap<>());
+                        }
                         deserializePlayerData(playerData, worldLocsData);
+                        
+                        // If we migrated the data, save it back in new format
+                        if (needsMigrationRef.get()) {
+                            // Save the migrated data back to database asynchronously
+                            putPlayer(playerData, true);
+                        }
+                        
                         ref.set(Optional.of(playerData));
                     }
                 } catch (Throwable e) {

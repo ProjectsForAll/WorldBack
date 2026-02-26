@@ -9,6 +9,7 @@ public class Statements {
     @Getter
     public enum MySQL {
         CREATE_DATABASE("CREATE DATABASE IF NOT EXISTS `%database%`;"),
+        // WorldLocs stores JSON: {locations: [...], lastWorldPerWorldSet: {...}}
         CREATE_TABLES(
                 "CREATE TABLE IF NOT EXISTS `%table_prefix%Players` ( " +
                 "Uuid VARCHAR(36) NOT NULL, " +
@@ -39,6 +40,7 @@ public class Statements {
     @Getter
     public enum SQLite {
         CREATE_DATABASE(""),
+        // WorldLocs stores JSON: {locations: [...], lastWorldPerWorldSet: {...}}
         CREATE_TABLES(
                 "CREATE TABLE IF NOT EXISTS `%table_prefix%Players` ( " +
                 "Uuid TEXT NOT NULL, " +

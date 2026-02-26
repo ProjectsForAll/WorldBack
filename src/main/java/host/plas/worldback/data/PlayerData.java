@@ -9,7 +9,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
-import org.bukkit.World.Environment;
 import org.bukkit.entity.Player;
 
 import java.util.Optional;
@@ -27,13 +26,14 @@ public class PlayerData implements Identifiable {
 
     private AtomicBoolean fullyLoaded;
 
-    private String currentWorldSet; // nullable
-    private Environment lastEnvironment; // nullable - tracks last environment (NORMAL/NETHER/THE_END) within WorldSet
+    // Maps WorldSet name to the last world name the player was in for that WorldSet
+    private ConcurrentSkipListMap<String, String> lastWorldPerWorldSet;
 
     public PlayerData(String identifier, String name) {
         this.identifier = identifier;
         this.name = name;
         this.worldPlaces = new ConcurrentSkipListMap<>();
+        this.lastWorldPerWorldSet = new ConcurrentSkipListMap<>();
         this.fullyLoaded = new AtomicBoolean(false);
     }
 
@@ -101,8 +101,7 @@ public class PlayerData implements Identifiable {
 
                 this.name = newData.getName();
                 this.worldPlaces = newData.getWorldPlaces();
-                this.currentWorldSet = newData.getCurrentWorldSet();
-                this.lastEnvironment = newData.getLastEnvironment();
+                this.lastWorldPerWorldSet = newData.getLastWorldPerWorldSet();
             } else {
                 if (! isGet) {
                     this.save();
@@ -166,20 +165,19 @@ public class PlayerData implements Identifiable {
         });
     }
 
-    public Location getWorldLocByEnvironment(host.plas.worldback.data.WorldSet worldSet, Environment environment) {
-        if (worldSet == null || environment == null) return null;
-
-        // Find world in WorldSet with matching environment
-        for (String worldName : worldSet.getWorldNames()) {
-            World world = Bukkit.getWorld(worldName);
-            if (world != null && world.getEnvironment() == environment) {
-                Location loc = getWorldLoc(world);
-                if (loc != null) {
-                    return loc;
-                }
-            }
+    /**
+     * Sets the last world the player was in for a specific WorldSet
+     */
+    public void setLastWorldForWorldSet(String worldSetName, String worldName) {
+        if (worldSetName != null && worldName != null) {
+            lastWorldPerWorldSet.put(worldSetName, worldName);
         }
+    }
 
-        return null;
+    /**
+     * Gets the last world the player was in for a specific WorldSet
+     */
+    public String getLastWorldForWorldSet(String worldSetName) {
+        return lastWorldPerWorldSet.get(worldSetName);
     }
 }
